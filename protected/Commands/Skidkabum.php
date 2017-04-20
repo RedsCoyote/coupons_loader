@@ -3,21 +3,41 @@
 namespace App\Commands;
 
 use App\Core\Logger;
+use App\Junglefox\JungleFoxCommandsTrait;
+use App\Models\Event;
+use App\Models\Location;
 use T4\Console\Command;
+use T4\Core\Collection;
+
+define('STREAM_NAME', 'Купоны на скидки');
 
 class Skidkabum extends Command
 {
+    use JungleFoxCommandsTrait;
+
     protected $options = [
         CURLOPT_URL => 'http://api.skidkabum.ru/actions/get/',
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
     ];
 
+    /**
+     * Действие по-умолчанию
+     */
+    public function actionDefault()
+    {
+        $this->actionGet();
+    }
+
+    /**
+     * Получить события с купонатора и загрузить на наш портал
+     */
     public function actionGet()
     {
+        $eventCounter = 0;
         $logger = new Logger($this->app->config);
         if ($curl = curl_init()) {
-            $request = ['reques_t' => json_encode($this->app->config->couponators->skidkabum->getData())];
+            $request = ['request' => json_encode($this->app->config->couponators->skidkabum->getData())];
             $this->options[CURLOPT_POSTFIELDS] = http_build_query($request);
             curl_setopt_array($curl, $this->options);
 
@@ -25,21 +45,90 @@ class Skidkabum extends Command
             $info = curl_getinfo($curl);
 
             if (false === $out || 200 != $info['http_code']) {
-                $output = 'No cURL data returned for ' . $this->options[CURLOPT_URL] . ' [' . $info['http_code']. ']';
+                $output = 'No cURL data returned for ' . $this->options[CURLOPT_URL] . ' [' . $info['http_code'] . ']';
                 if (curl_error($curl)) {
                     $output .= "\n" . curl_error($curl);
                 }
                 $logger->log('Error', $output, []);
             } else {
                 $res = json_decode($out);
-                // TODO: Загрузка в БД
-                echo print_r($res);
-                $logger->log('Info', 'Loading from skidkabum.ru OK', ['coupons' => 1]);
+                if (1 == count((array)$res)) {
+                    $logger->log('Info', 'Loaded event #' . $res->action->id . ' from skidkabum.ru');
+                    $res->actions[] = $res->action;
+                } else {
+                    $logger->log(
+                        'Info',
+                        'Loaded ' . $res->count . ' events out ' . $res->allCount . ' from skidkabum.ru'
+                    );
+                }
+
+                foreach ($res->actions as $action) {
+                    if ($this->isNewEvent($action->id)) {
+                        $event = new Event();
+                        $event->announcement = $action->name;
+                        $event->description = $action->describe . $action->describeAdvertisment .
+                            $action->describeAttention;
+                        $event->stream = ['id' => $this->source->stream_id];
+                        $event->action_url = $action->url . '?utm_source=junglefox';
+                        $event->start_pub_date = strtotime($action->dateStart);
+                        $event->end_pub_date = strtotime($action->dateEnd);
+                        $event->price_from = $action->priceBeforeDiscount;
+                        $event->price_to = $action->price;
+                        $picture = $this->jfApi->addPicture($action->mainPhoto);
+                        $event->pictures = [['id' => $picture->saved_id]];
+                        $sessions = [
+                            [
+                                'start_at' => $event->start_pub_date,
+                                'end_at' => $event->end_pub_date,
+                                'price' => $action->price,
+                                'currency' => 'rub',
+                            ]
+                        ];
+                        $locationsIds = [];
+                        $locations = [];
+                        foreach ($action->address as $address) {
+                            if (boolval($location = Location::findByColumn('name', $address->address))) {
+                                $locationsIds[] = ['id' => (int)$location->saved_id, 'sessions' => $sessions];
+                                $locations[] = $location;
+                            } else {
+                                $location = new Location();
+                                $location->lat = $address->geoX;
+                                $location->lng = $address->geoY;
+                                $location->address = $address->address;
+                                $location->name = $location->address;
+                                $location->id = $this->jfApi->addLocation($location);
+                                if ($location->id) {
+                                    $locationsIds[] = ['id' => $location->id, 'sessions' => $sessions];
+                                    $location->saved_id = $location->id;
+                                    $location->save();
+                                    $locations[] = $location;
+                                }
+                            }
+                        }
+                        $event->locations = $locationsIds;
+                        if (boolval($event->saved_id = $this->jfApi->addEvent($event))) {
+                            $event->source = $this->source;
+                            $event->locations = new Collection($locations);
+                            $event->pictures = new Collection([$picture]);
+                            $event->original_id = $action->id;
+                            $event->expiration_date = date("Y-m-d", $event->end_pub_date);
+                            $event->save();
+                            $eventCounter += 1;
+                        }
+                    }
+                }
             }
 
+            $logger->log('Info', 'Saved ' . $eventCounter . ' events from ' . $this->options[CURLOPT_URL], []);
             curl_close($curl);
         } else {
             $logger->log('Critical', 'Can\'t inicialise cURL library', []);
         }
+    }
+
+    public function actionTest()
+    {
+//        $this->jfApi->addPicture('http://skidkabum.ru/img/img/projekt-s2.jpg');
+//        $this->jfApi->deleteLocation(13430);
     }
 }
