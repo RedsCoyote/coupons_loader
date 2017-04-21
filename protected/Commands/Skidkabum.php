@@ -66,8 +66,11 @@ class Skidkabum extends Command
                     if ($this->isNewEvent($action->id)) {
                         $event = new Event();
                         $event->announcement = $action->name;
-                        $event->description = $action->describe . $action->describeAdvertisment .
-                            $action->describeAttention;
+                        $event->s_description = json_encode(['data' => [[
+                            'type' => 1,
+                            'data' => $action->describe . $action->describeAdvertisment .
+                                $action->describeAttention
+                        ]]]);
                         $event->stream = ['id' => $this->source->stream_id];
                         $event->action_url = $action->url . '?utm_source=junglefox';
                         $event->start_pub_date = strtotime($action->dateStart);
