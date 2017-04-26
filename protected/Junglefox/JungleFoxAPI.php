@@ -2,11 +2,12 @@
 
 namespace App\Junglefox;
 
+use App\Core\Logger;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Picture;
+use T4\Auth\Exception;
 use T4\Core\Config;
-use T4\Core\Logger;
 
 class JungleFoxAPI
 {
@@ -45,12 +46,13 @@ class JungleFoxAPI
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
 
-        if (false === $out || 200 != $info['http_code']) {
+        if (false === $out || 200 != $info['http_code'] || (isset($out->success) && false === $out->success)) {
             $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            throw new Exception('SignIn error');
         } else {
             $this->auth_token = json_decode($out)->user->auth_token;
         }
@@ -81,7 +83,7 @@ class JungleFoxAPI
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
             return null;
         } else {
             $res = json_decode($out);
@@ -112,7 +114,7 @@ class JungleFoxAPI
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'anser_info' => $info]);
         }
     }
 
@@ -138,7 +140,7 @@ class JungleFoxAPI
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
             return null;
         } else {
             return (int) json_decode($out)[0]->id;
@@ -169,11 +171,38 @@ class JungleFoxAPI
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
             return null;
         } else {
             $res = json_decode($out);
             return $res->id;
+        }
+    }
+
+    /**
+     * Удаление события по его ID
+     * @param int $eventID - ID удаляемого события
+     */
+    public function deleteEvent(int $eventID)
+    {
+        $options = [
+            CURLOPT_URL => $this->config->url . '/api/v2/events/' . $eventID,
+            CURLOPT_CUSTOMREQUEST => 'DELETE',
+            CURLOPT_HTTPHEADER => [
+                'auth_token: ' . $this->auth_token
+            ],
+            CURLOPT_RETURNTRANSFER => false,
+        ];
+        curl_setopt_array($this->curl, $options);
+        curl_exec($this->curl);
+        $info = curl_getinfo($this->curl);
+
+        if (204 != $info['http_code']) {
+            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            if (curl_error($this->curl)) {
+                $output .= "\n" . curl_error($this->curl);
+            }
+            $this->logger->log('Error', $output, ['request' => $options, 'anser_info' => $info]);
         }
     }
 
@@ -199,7 +228,7 @@ class JungleFoxAPI
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, []);
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
             return null;
         } else {
             $path = explode('://', $pictureURL)[1];
@@ -233,7 +262,7 @@ class JungleFoxAPI
                 if (curl_error($this->curl)) {
                     $output .= "\n" . curl_error($this->curl);
                 }
-                $this->logger->log('Error', $output, []);
+                $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
                 return null;
             } else {
                 $res = json_decode($out);

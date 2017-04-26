@@ -4,6 +4,7 @@ namespace App\Junglefox;
 
 use App\Models\Event;
 use App\Models\Source;
+use T4\Auth\Exception;
 use T4\Dbal\QueryBuilder;
 
 trait JungleFoxCommandsTrait
@@ -20,7 +21,11 @@ trait JungleFoxCommandsTrait
 
     protected function beforeAction()
     {
-        $this->jfApi = new JungleFoxAPI($this->app->config);
+        try {
+            $this->jfApi = new JungleFoxAPI($this->app->config);
+        } catch (Exception $e) {
+            return false;
+        }
         if (!$this->initStream()) {
             // TODO: logg
             return false;

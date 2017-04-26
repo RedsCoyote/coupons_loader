@@ -49,30 +49,32 @@ class Skidkabum extends Command
                 if (curl_error($curl)) {
                     $output .= "\n" . curl_error($curl);
                 }
-                $logger->log('Error', $output, []);
+                $logger->log('Error', $output, ['request' => $this->options, 'answer' => $info]);
             } else {
                 $res = json_decode($out);
                 if (1 == count((array)$res)) {
                     $logger->log('Info', 'Loaded event #' . $res->action->id . ' from skidkabum.ru');
                     $res->actions[] = $res->action;
+                    $singleMode = true;
                 } else {
                     $logger->log(
                         'Info',
                         'Loaded ' . $res->count . ' events out ' . $res->allCount . ' from skidkabum.ru'
                     );
+                    $singleMode = false;
                 }
 
                 foreach ($res->actions as $action) {
                     if ($this->isNewEvent($action->id)) {
                         $event = new Event();
-                        $event->announcement = $action->name;
+                        $event->announcement = mb_substr($action->name, 0, 160, 'UTF-8');
                         $event->s_description = json_encode(['data' => [[
                             'type' => 1,
                             'data' => $action->describe . $action->describeAdvertisment .
                                 $action->describeAttention
                         ]]]);
                         $event->stream = ['id' => $this->source->stream_id];
-                        $event->action_url = $action->url . '?utm_source=junglefox';
+                        $event->action_url = $action->url . '?utm_source=junglefox#countdown';
                         $event->start_pub_date = strtotime($action->dateStart);
                         $event->end_pub_date = strtotime($action->dateEnd);
                         $event->price_from = $action->priceBeforeDiscount;
@@ -90,13 +92,22 @@ class Skidkabum extends Command
                         $locationsIds = [];
                         $locations = [];
                         foreach ($action->address as $address) {
-                            if (boolval($location = Location::findByColumn('name', $address->address))) {
+                            if ($singleMode) {
+                                $lat = $address->geoX;
+                                $lng = $address->geoY;
+                            } else {
+                                $lat = $address->geoY;
+                                $lng = $address->geoX;
+                            }
+                            if (boolval(
+                                $location = Location::getByData($address->address, $lat, $lng)
+                            )) {
                                 $locationsIds[] = ['id' => (int)$location->saved_id, 'sessions' => $sessions];
                                 $locations[] = $location;
                             } else {
                                 $location = new Location();
-                                $location->lat = $address->geoX;
-                                $location->lng = $address->geoY;
+                                $location->lat = $lat;
+                                $location->lng = $lng;
                                 $location->address = $address->address;
                                 $location->name = $location->address;
                                 $location->id = $this->jfApi->addLocation($location);
@@ -131,6 +142,14 @@ class Skidkabum extends Command
 
     public function actionTest()
     {
+        $locations = Location::findAll();
+        foreach ($locations as $location) {
+            $this->jfApi->deleteLocation($location->saved_id);
+        }
+//        $events = Event::findAll();
+//        foreach ($events as $event) {
+//            $this->jfApi->deleteEvent($event->saved_id);
+//        }
 //        $this->jfApi->addPicture('http://skidkabum.ru/img/img/projekt-s2.jpg');
 //        $this->jfApi->deleteLocation(13430);
     }
