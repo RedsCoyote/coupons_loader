@@ -16,9 +16,9 @@ class JungleFoxAPI
     protected $config = null;
     protected $logger = null;
 
-    public function __construct(Config $config)
+    public function __construct(Config $config, Logger $logger)
     {
-        $this->logger = new Logger($config);
+        $this->logger = $logger;
         $this->config = $config->junglefox;
         $this->curl = curl_init();
         $this->signIn();

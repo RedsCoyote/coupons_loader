@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use T4\Core\Collection;
+use T4\Dbal\QueryBuilder;
 use T4\Orm\Model;
 
 /**
@@ -47,5 +48,22 @@ class Event extends Model
         parent::__construct($data);
         $this->moderation = true;
         $this->action_title = 'Купить купоны';
+    }
+
+    /**
+     * Проверка, Загружалось ли событие ранее
+     * @param $id - ID события, полученый от купонатора
+     * @param Source $source - источник событий
+     * @return bool
+     */
+    public static function isLoaded($id, Source $source) : bool
+    {
+        $query = new QueryBuilder();
+        $query->
+        select('COUNT(*)')->
+        from('events')->
+        where('__source_id = :source AND original_id = :id')->
+        params([':source' => $source->__id, ':id' => $id]);
+        return boolval(Event::countAllByQuery($query));
     }
 }
