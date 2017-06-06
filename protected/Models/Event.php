@@ -56,14 +56,30 @@ class Event extends Model
      * @param Source $source - источник событий
      * @return bool
      */
-    public static function isLoaded($id, Source $source) : bool
+    public static function isLoaded($id, Source $source): bool
     {
         $query = new QueryBuilder();
-        $query->
-        select('COUNT(*)')->
-        from('events')->
-        where('__source_id = :source AND original_id = :id')->
-        params([':source' => $source->__id, ':id' => $id]);
+        $query
+            ->select('COUNT(*)')
+            ->from('events')
+            ->where('__source_id = :source AND original_id = :id')
+            ->params([':source' => $source->__id, ':id' => $id]);
         return boolval(Event::countAllByQuery($query));
+    }
+
+    /**
+     * Поиск просроченных событий
+     * @param Source $source
+     * @return static
+     */
+    public static function findExpiredBySource($source)
+    {
+        $query = new QueryBuilder();
+        $query
+            ->select('*')
+            ->from('events')
+            ->where('__source_id = :source AND expiration_date < CURRENT_DATE')
+            ->params([':source' => $source->getPk()]);
+        return Event::findAllByQuery($query);
     }
 }

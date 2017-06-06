@@ -30,6 +30,7 @@ class Skidkabum extends Command
      */
     public function actionGet()
     {
+        $this->cleanUp();
         $eventCounter = 0;
         $actions = $this->downloadEvents();
         $singleMode = (1 == count((array)$actions));

@@ -3,6 +3,8 @@
 namespace App\Core;
 
 use App\Junglefox\JungleFoxAPI;
+use App\Models\Event;
+use App\Models\Location;
 use App\Models\Source;
 use Exception;
 
@@ -58,5 +60,40 @@ abstract class Command extends \T4\Console\Command
             }
         }
         return false;
+    }
+
+    /**
+     * Удаление прошедших событий
+     */
+    private function removeExpiredEvents()
+    {
+        $expiredEvents = Event::findExpiredBySource($this->source);
+        /** @var Event $expiredEvent */
+        foreach ($expiredEvents as $expiredEvent) {
+            $this->jfApi->deleteEvent($expiredEvent->saved_id);
+            $expiredEvent->delete();
+        }
+    }
+
+    /**
+     * Удаление локаций, которые не связаны ни с одним событием
+     */
+    private function removeUnusedLocations()
+    {
+        $unusedLocations = Location::findUnused();
+        /** @var Location $unusedLocation */
+        foreach ($unusedLocations as $unusedLocation) {
+            $this->jfApi->deleteLocation($unusedLocation->getPk());
+            $unusedLocation->delete();
+        }
+    }
+
+    /**
+     * Удаление устаревших и ненужных данных
+     */
+    protected function cleanUp()
+    {
+        $this->removeExpiredEvents();
+        $this->removeUnusedLocations();
     }
 }

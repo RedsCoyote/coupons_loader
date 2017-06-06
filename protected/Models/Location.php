@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use T4\Dbal\QueryBuilder;
 use T4\Orm\Model;
 
 define('MAX_DISTANCE', 50.0);  // В метрах
@@ -86,5 +87,19 @@ class Location extends Model
         $x = $slat1 * $slat2 + $clat1 * $clat2 * $cdelt;
 
         return abs(atan2(sqrt($y), $x) * EARTH_RADIUS);
+    }
+
+    /**
+     * Поиск неиспользуемых локаций
+     * @return static
+     */
+    public static function findUnused()
+    {
+        $query = new QueryBuilder();
+        $query
+            ->select('*')
+            ->from('locations')
+            ->where('__id NOT IN (SELECT __location_id FROM events_to_locations)');
+        return Location::findAllByQuery($query);
     }
 }
