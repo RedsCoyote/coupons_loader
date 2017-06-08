@@ -2,3 +2,5 @@
 vendor
 protected/Cache
 logs/
+protected/config.php
+build/phing_properties.yml

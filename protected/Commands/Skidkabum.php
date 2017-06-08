@@ -61,6 +61,9 @@ class Skidkabum extends Command
                 ];
                 $locationsIds = [];
                 $locations = [];
+                if (!boolval($action->address)) {
+                    continue;
+                }
                 foreach ($action->address as $address) {
                     if ($singleMode) {
                         $lat = $address->geoX;
@@ -107,13 +110,13 @@ class Skidkabum extends Command
 
     public function actionTest()
     {
-        $locations = Location::findAll();
-        foreach ($locations as $location) {
-            $this->jfApi->deleteLocation($location->saved_id);
-        }
 //        $events = Event::findAll();
 //        foreach ($events as $event) {
 //            $this->jfApi->deleteEvent($event->saved_id);
+//        }
+//        $locations = Location::findAll();
+//        foreach ($locations as $location) {
+//            $this->jfApi->deleteLocation($location->saved_id);
 //        }
 //        $this->jfApi->addPicture('http://skidkabum.ru/img/img/projekt-s2.jpg');
 //        $this->jfApi->deleteLocation(13430);

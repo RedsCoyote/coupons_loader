@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="junglefox_coupons_loader" default="build" basedir=".">
+
+    <target name="vars">
+        <php returnProperty="build.time" function="date">
+            <param value="Y-m-d-H-i-s" />
+        </php>
+        <resolvepath propertyName="target.dir" path="/opt/coupons_loader/${build.time}" />
+        <echo msg="Source dir: ${project.basedir}" />
+        <echo msg="Target dir: ${target.dir}" />
+    </target>
+
+    <target name="copy" depends="vars">
+        <copy todir="${target.dir}">
+            <fileset dir="${project.basedir}">
+                <include name="**"/>
+                <exclude name="build/**"/>
+                <exclude name="phing.phar"/>
+            </fileset>
+        </copy>
+        <copy file="${project.basedir}/build/config.php"
+              tofile="${target.dir}/protected/config.php"
+              overwrite="true" >
+            <filterchain>
+                <replacetokens begintoken="{{" endtoken="}}">
+                    <token key="api.user" value="${api.user}" />
+                    <token key="api.password" value="${api.password}" />
+                    <token key="db.name" value="${db.name}" />
+                    <token key="db.user" value="${db.user}" />
+                    <token key="db.password" value="${db.password}" />
+                    <token key="skidkabum.user" value="${skidkabum.user}" />
+                    <token key="skidkabum.password" value="${skidkabum.password}" />
+                    <token key="skidkabum.salt" value="${skidkabum.salt}" />
+                    <token key="api.user" value="${api.user}" />
+                    <token key="db.passwd" value="${db.passwd}" />
+                </replacetokens>
+            </filterchain>
+        </copy>
+        <copy file="${project.basedir}/build/cron"
+              tofile="${target.dir}/protected/cron"
+              overwrite="true" >
+            <filterchain>
+                <replacetokens begintoken="{{" endtoken="}}">
+                    <token key="target.dir" value="${target.dir}" />
+                </replacetokens>
+            </filterchain>
+        </copy>
+    </target>
+
+    <target name="composer" depends="copy">
+        <exec dir="${target.dir}" command="php composer.phar install" checkreturn="true" passthru="true"/>
+    </target>
+
+    <target name="link" depends="composer">
+        <symlink target="${target.dir}" link="/opt/coupons_loader/current" overwrite="true" />
+    </target>
+
+    <target name="migrate" depends="link">
+        <exec command="php ${target.dir}/protected/t4.php /migrate" checkreturn="true" passthru="true"/>
+    </target>
+
+    <target name="cron" depends="migrate">
+        <mkdir dir="${target.dir}/logs" />
+        <touch file="${target.dir}/logs/cron.log" />
+        <exec command="crontab ${target.dir}/protected/cron" checkreturn="true" passthru="true" />
+    </target>
+
+    <target name="build" depends="cron"/>
+
+</project>

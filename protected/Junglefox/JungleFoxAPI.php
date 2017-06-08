@@ -62,7 +62,7 @@ class JungleFoxAPI
      * @param Location $location
      * @return int|null
      */
-    public function addLocation(Location $location) : ?int
+    public function addLocation(Location $location)
     {
         $options = [
             CURLOPT_URL => $this->config->url . '/api/v2/locations',
@@ -123,7 +123,7 @@ class JungleFoxAPI
      * @param string $streamName
      * @return int|null
      */
-    public function findStream(string $streamName) : ?int
+    public function findStream(string $streamName)
     {
         $options = [
             CURLOPT_URL => $this->config->url . '/api/v3/streams?name_cont=' . urlencode($streamName),
@@ -237,7 +237,7 @@ class JungleFoxAPI
         }
     }
 
-    public function addPicture($pictureURL) : ?Picture
+    public function addPicture($pictureURL)
     {
         if (boolval($picture = Picture::findByColumn('url', $pictureURL))) {
             return $picture;

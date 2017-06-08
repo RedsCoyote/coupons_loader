@@ -1,0 +1,2 @@
+MAILTO=""
+0 1 * * * php {{target.dir}}/protected/t4.php skidkabum/get &>> {{target.dir}}/logs/cron.log
