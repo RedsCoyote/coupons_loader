@@ -3,6 +3,9 @@
 namespace App\Commands;
 
 use App\Core\Command;
+use App\Exceptions\EventException;
+use App\Exceptions\ImageException;
+use App\Exceptions\LocationException;
 use App\Models\Event;
 use App\Models\Location;
 use T4\Core\Collection;
@@ -49,7 +52,12 @@ class Skidkabum extends Command
                 $event->end_pub_date = strtotime($action->dateEnd);
                 $event->price_from = $action->priceBeforeDiscount;
                 $event->price_to = $action->price;
-                $picture = $this->jfApi->addPicture($action->mainPhoto);
+                try {
+                    $picture = $this->jfApi->addPicture($action->mainPhoto);
+                } catch (ImageException $e) {
+                    $this->logger->error('Skidkabum\'s action ' . $action->url . 'error loading main picture');
+                    continue;
+                }
                 $event->pictures = [['id' => $picture->saved_id]];
                 $sessions = [
                     [
@@ -62,6 +70,7 @@ class Skidkabum extends Command
                 $locationsIds = [];
                 $locations = [];
                 if (!boolval($action->address)) {
+                    $this->logger->error('Skidkabum\'s action ' . $action->url . 'don\'t have the address');
                     continue;
                 }
                 foreach ($action->address as $address) {
@@ -83,25 +92,33 @@ class Skidkabum extends Command
                         $location->lng = $lng;
                         $location->address = $address->address;
                         $location->name = $location->address;
-                        $location->id = $this->jfApi->addLocation($location);
-                        if ($location->id) {
-                            $locationsIds[] = ['id' => $location->id, 'sessions' => $sessions];
-                            $location->saved_id = $location->id;
-                            $location->save();
-                            $locations[] = $location;
+                        try {
+                            $location->id = $this->jfApi->addLocation($location);
+                        } catch (LocationException $e) {
+                            $this->logger->error('Skidkabum\'s action ' . $action->url . 'error loading location');
+                            continue 2;
                         }
+                        $locationsIds[] = ['id' => $location->id, 'sessions' => $sessions];
+                        $location->saved_id = $location->id;
+                        $location->save();
+                        $locations[] = $location;
                     }
                 }
                 $event->locations = $locationsIds;
-                if (boolval($event->saved_id = $this->jfApi->addEvent($event))) {
-                    $event->source = $this->source;
-                    $event->locations = new Collection($locations);
-                    $event->pictures = new Collection([$picture]);
-                    $event->original_id = $action->id;
-                    $event->expiration_date = date("Y-m-d", $event->end_pub_date);
-                    $event->save();
-                    $eventCounter += 1;
+                try {
+                    $event->saved_id = $this->jfApi->addEvent($event);
+                } catch (EventException $e) {
+                    $this->logger->error('Skidkabum\'s action ' . $action->url . 'error loading event');
+                    continue;
                 }
+                $event->source = $this->source;
+                $event->locations = new Collection($locations);
+                $event->pictures = new Collection([$picture]);
+                $event->original_id = $action->id;
+                $event->expiration_date = date("Y-m-d", $event->end_pub_date);
+                $event->save();
+                $eventCounter += 1;
+                usleep(500000);
             }
         }
 

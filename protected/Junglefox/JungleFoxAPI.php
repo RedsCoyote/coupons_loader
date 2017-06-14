@@ -3,6 +3,9 @@
 namespace App\Junglefox;
 
 use App\Core\Logger;
+use App\Exceptions\EventException;
+use App\Exceptions\ImageException;
+use App\Exceptions\LocationException;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Picture;
@@ -60,7 +63,8 @@ class JungleFoxAPI
 
     /**
      * @param Location $location
-     * @return int|null
+     * @return int
+     * @throws LocationException
      */
     public function addLocation(Location $location)
     {
@@ -84,7 +88,7 @@ class JungleFoxAPI
                 $output .= "\n" . curl_error($this->curl);
             }
             $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
-            return null;
+            throw new LocationException();
         } else {
             $res = json_decode($out);
             return $res->id;
@@ -143,10 +147,15 @@ class JungleFoxAPI
             $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
             return null;
         } else {
-            return (int) json_decode($out)[0]->id;
+            return (int)json_decode($out)[0]->id;
         }
     }
 
+    /**
+     * @param Event $event
+     * @return int
+     * @throws EventException
+     */
     public function addEvent(Event $event)
     {
         $options = [
@@ -172,7 +181,7 @@ class JungleFoxAPI
                 $output .= "\n" . curl_error($this->curl);
             }
             $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
-            return null;
+            throw new EventException();
         } else {
             $res = json_decode($out);
             return $res->id;
@@ -209,7 +218,8 @@ class JungleFoxAPI
     /**
      * Скачивает изображение, возвращет его, закодировав в Base64
      * @param string $pictureURL
-     * @return null|string
+     * @return string
+     * @throws ImageException
      */
     protected function getPicture(string $pictureURL)
     {
@@ -229,7 +239,7 @@ class JungleFoxAPI
                 $output .= "\n" . curl_error($this->curl);
             }
             $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
-            return null;
+            throw new ImageException();
         } else {
             $path = explode('://', $pictureURL)[1];
             $type = pathinfo($path, PATHINFO_EXTENSION);
@@ -242,37 +252,35 @@ class JungleFoxAPI
         if (boolval($picture = Picture::findByColumn('url', $pictureURL))) {
             return $picture;
         }
-        if (boolval($pictureData = $this->getPicture($pictureURL))) {
-            $options = [
-                CURLOPT_URL => $this->config->url . '/api/v2/pictures',
-                CURLOPT_POST => true,
-                CURLOPT_HTTPHEADER => [
-                    'Content-type: application/json; charset=UTF-8',
-                    'auth_token: ' . $this->auth_token
-                ],
-                CURLOPT_RETURNTRANSFER => true,
-            ];
-            $options[CURLOPT_POSTFIELDS] = json_encode(['picture' => ['image' => $pictureData]]);
-            curl_setopt_array($this->curl, $options);
-            $out = curl_exec($this->curl);
-            $info = curl_getinfo($this->curl);
+        $pictureData = $this->getPicture($pictureURL);
+        $options = [
+            CURLOPT_URL => $this->config->url . '/api/v2/pictures',
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Content-type: application/json; charset=UTF-8',
+                'auth_token: ' . $this->auth_token
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+        ];
+        $options[CURLOPT_POSTFIELDS] = json_encode(['picture' => ['image' => $pictureData]]);
+        curl_setopt_array($this->curl, $options);
+        $out = curl_exec($this->curl);
+        $info = curl_getinfo($this->curl);
 
-            if (false === $out || 200 != $info['http_code']) {
-                $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
-                if (curl_error($this->curl)) {
-                    $output .= "\n" . curl_error($this->curl);
-                }
-                $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
-                return null;
-            } else {
-                $res = json_decode($out);
-                $picture = new Picture();
-                $picture->url = $pictureURL;
-                $picture->saved_id = $res->id;
-                $picture->save();
-                return $picture;
+        if (false === $out || 200 != $info['http_code']) {
+            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            if (curl_error($this->curl)) {
+                $output .= "\n" . curl_error($this->curl);
             }
+            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            throw new ImageException();
+        } else {
+            $res = json_decode($out);
+            $picture = new Picture();
+            $picture->url = $pictureURL;
+            $picture->saved_id = $res->id;
+            $picture->save();
+            return $picture;
         }
-        return null;
     }
 }
