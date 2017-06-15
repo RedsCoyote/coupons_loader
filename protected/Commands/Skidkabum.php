@@ -125,6 +125,9 @@ class Skidkabum extends Command
         $this->logger->log('Info', 'Saved ' . $eventCounter . ' events from ' . $this->options[CURLOPT_URL], []);
     }
 
+    /**
+     * Для тестирования отдельных функций
+     */
     public function actionTest()
     {
 //        $events = Event::findAll();

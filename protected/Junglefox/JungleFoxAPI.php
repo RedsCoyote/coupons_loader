@@ -50,11 +50,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 200 != $info['http_code'] || (isset($out->success) && false === $out->success)) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(signIn) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             throw new Exception('SignIn error');
         } else {
             $this->auth_token = json_decode($out)->user->auth_token;
@@ -83,11 +83,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 201 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(addLocation) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             throw new LocationException();
         } else {
             $res = json_decode($out);
@@ -114,11 +114,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (204 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(deleteLocation) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
         }
     }
 
@@ -140,11 +140,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 200 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(findStream) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             return null;
         } else {
             return (int)json_decode($out)[0]->id;
@@ -176,11 +176,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 200 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(addEvent) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             throw new EventException();
         } else {
             $res = json_decode($out);
@@ -207,11 +207,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (204 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(deleteEvent) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
         }
     }
 
@@ -234,11 +234,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 200 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(getPicture) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             throw new ImageException();
         } else {
             $path = explode('://', $pictureURL)[1];
@@ -247,6 +247,12 @@ class JungleFoxAPI
         }
     }
 
+    /**
+     * Загрузка изображения на сервер
+     * @param $pictureURL - URL изображения
+     * @return Picture
+     * @throws ImageException
+     */
     public function addPicture($pictureURL)
     {
         if (boolval($picture = Picture::findByColumn('url', $pictureURL))) {
@@ -268,11 +274,11 @@ class JungleFoxAPI
         $info = curl_getinfo($this->curl);
 
         if (false === $out || 200 != $info['http_code']) {
-            $output = 'From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
+            $output = '(addPicture) From ' . $options[CURLOPT_URL] . ' returned [' . $info['http_code'] . ']';
             if (curl_error($this->curl)) {
                 $output .= "\n" . curl_error($this->curl);
             }
-            $this->logger->log('Error', $output, ['request' => $options, 'answer' => $out, 'anser_info' => $info]);
+            $this->logger->log('Error', $output, ['request' => $options]);
             throw new ImageException();
         } else {
             $res = json_decode($out);

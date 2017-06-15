@@ -24,6 +24,10 @@ abstract class Command extends \T4\Console\Command
      */
     protected $source = null;
 
+    /**
+     * Действия, выполняемые до любой команды
+     * @return bool Если возвращается false, то дальнейшая команда игнорируется
+     */
     protected function beforeAction()
     {
         $config = $this->app->config;
