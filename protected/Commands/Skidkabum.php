@@ -142,36 +142,38 @@ class Skidkabum extends Command
 //        $this->jfApi->deleteLocation(13430);
     }
 
+    /**
+     * Загрузка акций с купонатора
+     * @return array
+     */
     protected function downloadEvents(): array
     {
-        if ($curl = curl_init()) {
-            $request = ['request' => json_encode($this->app->config->couponators->skidkabum->getData())];
-            $this->options[CURLOPT_POSTFIELDS] = http_build_query($request);
-            curl_setopt_array($curl, $this->options);
+        $curl = $this->jfApi->getCurl();
+        $request = ['request' => json_encode($this->app->config->couponators->skidkabum->getData())];
+        $this->options[CURLOPT_POSTFIELDS] = http_build_query($request);
+        curl_reset($curl);
+        curl_setopt_array($curl, $this->options);
 
-            $out = curl_exec($curl);
-            $info = curl_getinfo($curl);
+        $out = curl_exec($curl);
+        $info = curl_getinfo($curl);
 
-            if (false === $out || 200 != $info['http_code']) {
-                $this->logger->error(
-                    'Can\'t download actions',
-                    ['request' => $this->options, 'answer' => $out, 'answer_info' => $info]
-                );
+        if (false === $out || 200 != $info['http_code']) {
+            $this->logger->error(
+                'Can\'t download actions',
+                ['request' => $this->options, 'answer' => $out, 'answer_info' => $info]
+            );
+            return [];
+        } else {
+            $res = json_decode($out);
+            if (1 == count((array)$res)) {
+                $this->logger->info('Loaded event #' . $res->action->id . ' from skidkabum.ru');
+                $res->actions[] = $res->action;
             } else {
-                $res = json_decode($out);
-                if (1 == count((array)$res)) {
-                    $this->logger->info('Loaded event #' . $res->action->id . ' from skidkabum.ru');
-                    $res->actions[] = $res->action;
-                } else {
-                    $this->logger->info(
-                        'Loaded ' . $res->count . ' events out ' . $res->allCount . ' from skidkabum.ru'
-                    );
-                }
-                return $res->actions;
+                $this->logger->info(
+                    'Loaded ' . $res->count . ' events out ' . $res->allCount . ' from skidkabum.ru'
+                );
             }
-            curl_close($curl);
+            return $res->actions;
         }
-        $this->logger->log('Critical', 'Can\'t initialise cURL library', []);
-        return [];
     }
 }

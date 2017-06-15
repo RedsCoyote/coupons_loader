@@ -3,13 +3,14 @@
 namespace App\Junglefox;
 
 use App\Core\Logger;
+use App\Exceptions\InitAPIException;
 use App\Exceptions\EventException;
 use App\Exceptions\ImageException;
 use App\Exceptions\LocationException;
+use App\Exceptions\SignInException;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Picture;
-use T4\Auth\Exception;
 use T4\Core\Config;
 
 class JungleFoxAPI
@@ -19,12 +20,25 @@ class JungleFoxAPI
     protected $config = null;
     protected $logger = null;
 
+    /**
+     * JungleFoxAPI constructor.
+     * @param Config $config
+     * @param Logger $logger
+     * @throws InitAPIException
+     */
     public function __construct(Config $config, Logger $logger)
     {
         $this->logger = $logger;
         $this->config = $config->junglefox;
-        $this->curl = curl_init();
-        $this->signIn();
+        if (false === $this->curl = curl_init()) {
+            $this->logger->log('Critical', 'Can\'t initialise cURL library', []);
+            throw new InitAPIException();
+        }
+        try {
+            $this->signIn();
+        } catch (SignInException $e) {
+            throw new InitAPIException();
+        }
     }
 
     public function __destruct()
@@ -35,6 +49,7 @@ class JungleFoxAPI
     /**
      * Аутентификация + авторизация пользователя
      * получет auth_token с сервера
+     * @throws SignInException
      */
     protected function signIn()
     {
@@ -45,6 +60,7 @@ class JungleFoxAPI
             CURLOPT_RETURNTRANSFER => true,
         ];
         $options[CURLOPT_POSTFIELDS] = json_encode(['user' => $this->config->user->getData()]);
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -55,7 +71,7 @@ class JungleFoxAPI
                 $output .= "\n" . curl_error($this->curl);
             }
             $this->logger->log('Error', $output, ['request' => $options]);
-            throw new Exception('SignIn error');
+            throw new SignInException();
         } else {
             $this->auth_token = json_decode($out)->user->auth_token;
         }
@@ -78,6 +94,7 @@ class JungleFoxAPI
             CURLOPT_RETURNTRANSFER => true,
         ];
         $options[CURLOPT_POSTFIELDS] = json_encode(['location' => $location->getData()]);
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -109,6 +126,7 @@ class JungleFoxAPI
             ],
             CURLOPT_RETURNTRANSFER => false,
         ];
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -134,6 +152,7 @@ class JungleFoxAPI
             CURLOPT_POST => false,
             CURLOPT_RETURNTRANSFER => true,
         ];
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         curl_exec($this->curl);
         $out = curl_exec($this->curl);
@@ -171,6 +190,7 @@ class JungleFoxAPI
         $eventData['locations'] = $event->locations;  // Имя locations еще и имя связи, по getData не выдается
         $eventData['pictures'] = $event->pictures;  // Имя pictures еще и имя связи, по getData не выдается
         $options[CURLOPT_POSTFIELDS] = json_encode(['event' => $eventData]);
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -202,6 +222,7 @@ class JungleFoxAPI
             ],
             CURLOPT_RETURNTRANSFER => false,
         ];
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -229,6 +250,7 @@ class JungleFoxAPI
             CURLOPT_RETURNTRANSFER => true,
         ];
 
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -269,6 +291,7 @@ class JungleFoxAPI
             CURLOPT_RETURNTRANSFER => true,
         ];
         $options[CURLOPT_POSTFIELDS] = json_encode(['picture' => ['image' => $pictureData]]);
+        curl_reset($this->curl);
         curl_setopt_array($this->curl, $options);
         $out = curl_exec($this->curl);
         $info = curl_getinfo($this->curl);
@@ -288,5 +311,13 @@ class JungleFoxAPI
             $picture->save();
             return $picture;
         }
+    }
+
+    /**
+     * @return null|resource
+     */
+    public function getCurl()
+    {
+        return $this->curl;
     }
 }

@@ -2,11 +2,11 @@
 
 namespace App\Core;
 
+use App\Exceptions\InitAPIException;
 use App\Junglefox\JungleFoxAPI;
 use App\Models\Event;
 use App\Models\Location;
 use App\Models\Source;
-use Exception;
 
 abstract class Command extends \T4\Console\Command
 {
@@ -34,8 +34,8 @@ abstract class Command extends \T4\Console\Command
         $this->logger = new Logger($config);
         try {
             $this->jfApi = new JungleFoxAPI($config, $this->logger);
-        } catch (Exception $e) {
-            $this->logger->error('Can\'t init Junglefox API. Application terminated.');
+        } catch (InitAPIException $e) {
+            $this->logger->error('Can\'t init API. Application terminated.');
             return false;
         }
         if (!$this->initStream()) {
