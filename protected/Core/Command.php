@@ -87,7 +87,7 @@ abstract class Command extends \T4\Console\Command
         $unusedLocations = Location::findUnused();
         /** @var Location $unusedLocation */
         foreach ($unusedLocations as $unusedLocation) {
-            $this->jfApi->deleteLocation($unusedLocation->getPk());
+            $this->jfApi->deleteLocation($unusedLocation->saved_id);
             $unusedLocation->delete();
         }
     }
