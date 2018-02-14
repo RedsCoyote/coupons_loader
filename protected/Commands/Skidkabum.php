@@ -34,6 +34,7 @@ class Skidkabum extends Command
     public function actionGet()
     {
         $this->cleanUp();
+        exit();  // 2017-02-14 нужно только удалить все события
         $eventCounter = 0;
         $actions = $this->downloadEvents();
         $singleMode = (1 == count((array)$actions));

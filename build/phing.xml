@@ -63,7 +63,8 @@
     <target name="cron" depends="migrate">
         <mkdir dir="${target.dir}/logs" />
         <touch file="${target.dir}/logs/cron.log" />
-        <exec command="crontab ${target.dir}/protected/cron" checkreturn="true" passthru="true" />
+        <!--2018-02-14 Отключить дальнейшую закачку по расписанию-->
+        <!--<exec command="crontab ${target.dir}/protected/cron" checkreturn="true" passthru="true" />-->
     </target>
 
     <target name="build" depends="cron"/>

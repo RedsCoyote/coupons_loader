@@ -72,6 +72,7 @@ abstract class Command extends \T4\Console\Command
     private function removeExpiredEvents()
     {
         $expiredEvents = Event::findExpiredBySource($this->source);
+        /** @var Event[] $expiredEvents */
         /** @var Event $expiredEvent */
         foreach ($expiredEvents as $expiredEvent) {
             $this->jfApi->deleteEvent($expiredEvent->saved_id);
@@ -85,6 +86,7 @@ abstract class Command extends \T4\Console\Command
     private function removeUnusedLocations()
     {
         $unusedLocations = Location::findUnused();
+        /** @var Location[] $unusedLocations */
         /** @var Location $unusedLocation */
         foreach ($unusedLocations as $unusedLocation) {
             $this->jfApi->deleteLocation($unusedLocation->saved_id);
